@@ -1,6 +1,4 @@
-use cached::proc_macro::cached;
 use image::ImageError;
-use ndarray::prelude::*;
 use rand::prelude::*;
 use rayon::prelude::*;
 use std::f64::consts::PI;
@@ -37,7 +35,7 @@ impl Default for MapData {
             seed: 0,
             seed_name: String::new(),
             percent_water: 0.6,
-            size: (3000, 1500),
+            size: (2000, 1200),
         }
     }
 }
@@ -68,12 +66,6 @@ impl Fault {
     }
 }
 
-#[derive(Clone)]
-struct SizedFault<'a> {
-    fault: &'a Fault,
-    array: Array<f64, Dim<[usize; 1]>>,
-}
-
 fn map_color(i: usize) -> image::Rgb<u8> {
     image::Rgb([RED[i], GREEN[i], BLUE[i]])
 }
@@ -84,52 +76,75 @@ pub fn map_image(data: &MapData) -> Result<egui::ColorImage, ImageError> {
 
     let y_range_div_2 = (imgy as f64) / 2.;
     let y_range_div_pi = (imgy as f64) / PI;
-    let mut world_heights = Array::zeros((imgx as usize, imgy as usize));
     let sin_iter_phi = |x: f64| (x * 2. * PI / imgx).sin();
 
-    let sized_faults: Vec<SizedFault> = data
-        .faults
-        .par_iter()
-        .map(|w| SizedFault {
-            fault: w,
-            array: Array::from_shape_fn([data.size.0 as usize], |i| {
-                let sin_iter_index = imgx * (w.xsi + 1.) - i as f64;
-                let atan_args = sin_iter_phi(sin_iter_index) * w.tan_b;
-                y_range_div_pi * atan_args.atan() + y_range_div_2
-            }),
-        })
-        .collect();
+    // let sized_faults: Vec<SizedFault> = data
+    //     .faults
+    //     .par_iter()
+    //     .map(|w| SizedFault {
+    //         fault: w,
+    //         array: Array::from_shape_fn([data.size.0 as usize], |i| {
+    //             let sin_iter_index = imgx * (w.xsi + 1.) - i as f64;
+    //             let atan_args = sin_iter_phi(sin_iter_index) * w.tan_b;
+    //             y_range_div_pi * atan_args.atan() + y_range_div_2
+    //         }),
+    //     })
+    //     .collect();
 
     println!("Processed Sized Faults");
 
-    world_heights
-        .indexed_iter_mut()
-        .for_each(|(coords, height)| {
-            let total_height: isize = sized_faults
+    let world_shape: Vec<Vec<(u32, u32)>> = (0..data.size.0)
+        .map(|w| (0..data.size.1).map(|w2| (w, w2)).collect())
+        .collect();
+
+    let world_heights: Vec<Vec<f64>> = world_shape
+        .par_iter()
+        .enumerate()
+        .map(|(column_index, column)| {
+            let flag_theta: Vec<(bool, f64)> = data
+                .faults
                 .par_iter()
                 .map(|w| {
-                    // let sin_iter_index = imgx * (w.xsi + 1.) - coords.0 as f64;
-                    // let atan_args = sin_iter_phi(sin_iter_index) * w.tan_b;
-                    // let theta = y_range_div_pi * atan_args.atan() + y_range_div_2;
-                    let a = w.fault.flag;
-                    let b = coords.1 as f64 <= w.array[coords.0];
-                    if !(a && b) && (a || b) {
-                        1
-                    } else {
-                        -1
-                    }
+                    let sin_iter_index = imgx * (w.xsi + 1.) - column_index as f64;
+                    let atan_args = sin_iter_phi(sin_iter_index) * w.tan_b;
+                    (w.flag, y_range_div_pi * atan_args.atan() + y_range_div_2) // Theta
                 })
-                .sum();
-            *height = total_height;
-        });
+                .collect();
+            column
+                .par_iter()
+                .enumerate()
+                .map(|(cell_num, _)| {
+                    flag_theta
+                        .par_iter()
+                        .map(|(a, theta)| {
+                            let b = cell_num as f64 <= *theta;
+                            // Basically XOR?
+                            if *a == b {
+                                1.
+                            } else {
+                                -1.
+                            }
+                        })
+                        .sum()
+                })
+                .collect()
+        })
+        .collect();
     println!("Finished calculating world heights");
 
-    let world_max = *world_heights.iter().max().unwrap() as f64;
-    let world_min = *world_heights.iter().min().unwrap() as f64;
+    let world_max = world_heights
+        .iter()
+        .map(|w| w.iter().cloned().fold(f64::NEG_INFINITY, f64::max))
+        .fold(f64::NEG_INFINITY, f64::max);
+    let world_min = world_heights
+        .iter()
+        .map(|w| w.iter().cloned().fold(f64::INFINITY, f64::min))
+        .fold(f64::INFINITY, f64::min);
+    println!("{}, {}", world_min, world_max);
     let world_range = world_max - world_min;
     let mut imgbuf = image::ImageBuffer::new(data.size.0, data.size.1);
     imgbuf.enumerate_pixels_mut().for_each(|(x, y, pixel)| {
-        let i = (world_heights[[x as usize, y as usize]] as f64 - world_min) / world_range * 47.;
+        let i = (world_heights[x as usize][y as usize] as f64 - world_min) / world_range * 47.;
         *pixel = map_color(i as usize);
     });
 
