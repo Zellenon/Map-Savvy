@@ -1,0 +1,27 @@
+[package]
+name = "MapSavvy"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cached="0"
+eframe="0"
+egui = "0.21"
+egui_extras = {version = "0.21", features = ["image"]}
+image = {version = "0.24.5", features=["jpeg","png"]}
+poll-promise = "0"
+ndarray = "0"
+num-complex = "0.4.3"
+rand = "0"
+rayon = "1"
+serde = "1"
+
+# Enable a small amount of optimization in debug mode
+[profile.dev]
+opt-level = 1
+
+# Enable high optimizations for dependencies (incl. Bevy)
+[profile.dev.package."*"]
+opt-level = 3
