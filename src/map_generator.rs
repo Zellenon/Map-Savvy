@@ -71,27 +71,12 @@ fn map_color(i: usize) -> image::Rgb<u8> {
 }
 
 pub fn map_image(data: &MapData) -> Result<egui::ColorImage, ImageError> {
-    let imgx = data.size.0 as f64;
-    let imgy = data.size.1 as f64;
+    let image_width = data.size.0 as f64;
+    let image_height = data.size.1 as f64;
 
-    let y_range_div_2 = (imgy as f64) / 2.;
-    let y_range_div_pi = (imgy as f64) / PI;
-    let sin_iter_phi = |x: f64| (x * 2. * PI / imgx).sin();
-
-    // let sized_faults: Vec<SizedFault> = data
-    //     .faults
-    //     .par_iter()
-    //     .map(|w| SizedFault {
-    //         fault: w,
-    //         array: Array::from_shape_fn([data.size.0 as usize], |i| {
-    //             let sin_iter_index = imgx * (w.xsi + 1.) - i as f64;
-    //             let atan_args = sin_iter_phi(sin_iter_index) * w.tan_b;
-    //             y_range_div_pi * atan_args.atan() + y_range_div_2
-    //         }),
-    //     })
-    //     .collect();
-
-    println!("Processed Sized Faults");
+    let y_range_div_2 = (image_height as f64) / 2.;
+    let y_range_div_pi = (image_height as f64) / PI;
+    let sin_iter_phi = |x: f64| (x * 2. * PI / image_width).sin();
 
     let world_shape: Vec<Vec<(u32, u32)>> = (0..data.size.0)
         .map(|w| (0..data.size.1).map(|w2| (w, w2)).collect())
@@ -100,25 +85,28 @@ pub fn map_image(data: &MapData) -> Result<egui::ColorImage, ImageError> {
     let world_heights: Vec<Vec<f64>> = world_shape
         .par_iter()
         .enumerate()
-        .map(|(column_index, column)| {
+        .map(|(x, column)| {
             let flag_theta: Vec<(bool, f64)> = data
                 .faults
                 .par_iter()
-                .map(|w| {
-                    let sin_iter_index = imgx * (w.xsi + 1.) - column_index as f64;
-                    let atan_args = sin_iter_phi(sin_iter_index) * w.tan_b;
-                    (w.flag, y_range_div_pi * atan_args.atan() + y_range_div_2) // Theta
+                .map(|fault_i| {
+                    let sin_iter_index = image_width * (fault_i.xsi + 1.) - x as f64;
+                    let atan_args = sin_iter_phi(sin_iter_index) * fault_i.tan_b;
+                    (
+                        fault_i.flag,
+                        y_range_div_pi * atan_args.atan() + y_range_div_2, // Theta
+                    )
                 })
                 .collect();
             column
                 .par_iter()
                 .enumerate()
-                .map(|(cell_num, _)| {
+                .map(|(y, _)| {
                     flag_theta
                         .par_iter()
                         .map(|(a, theta)| {
-                            let b = cell_num as f64 <= *theta;
-                            // Basically XOR?
+                            let b = y as f64 <= *theta;
+                            // This should be XOR, but this is the same and faster
                             if *a == b {
                                 1.
                             } else {
