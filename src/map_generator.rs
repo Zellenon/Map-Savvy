@@ -35,7 +35,7 @@ impl Default for MapData {
             seed: 0,
             seed_name: String::new(),
             percent_water: 0.6,
-            size: (2000, 1200),
+            size: (3000, 2000),
         }
     }
 }
@@ -90,7 +90,7 @@ pub fn map_image(data: &MapData) -> Result<egui::ColorImage, ImageError> {
                 .faults
                 .par_iter()
                 .map(|fault_i| {
-                    let sin_iter_index = image_width * (fault_i.xsi + 1.) - x as f64;
+                    let sin_iter_index = image_width * (fault_i.xsi + fault_i.shift) - x as f64;
                     let atan_args = sin_iter_phi(sin_iter_index) * fault_i.tan_b;
                     (
                         fault_i.flag,
@@ -128,16 +128,16 @@ pub fn map_image(data: &MapData) -> Result<egui::ColorImage, ImageError> {
         .iter()
         .map(|w| w.iter().cloned().fold(f64::INFINITY, f64::min))
         .fold(f64::INFINITY, f64::min);
-    println!("{}, {}", world_min, world_max);
     let world_range = world_max - world_min;
+
     let mut imgbuf = image::ImageBuffer::new(data.size.0, data.size.1);
     imgbuf.enumerate_pixels_mut().for_each(|(x, y, pixel)| {
-        let i = (world_heights[x as usize][y as usize] as f64 - world_min) / world_range * 47.;
+        let i = (world_heights[x as usize][y as usize] as f64 - world_min) / world_range * 30.;
         *pixel = map_color(i as usize);
     });
+    println!("Colors set");
 
-    // Save the image as “fractal.png”, the format is deduced from the path
-    imgbuf.save("fractal.png").unwrap();
+    imgbuf.save("map.png").unwrap();
     // let size = [imgbuf.width() as _, imgbuf.height() as _];
     // let pixels = imgbuf.as_flat_samples();
     // ColorImage::from_rgba_unmultiplied(size, pixels.as_slice())
