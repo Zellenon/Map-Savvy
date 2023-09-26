@@ -36,7 +36,7 @@ impl eframe::App for MyApp {
                         self.map_image = Some(poll_promise::Promise::spawn_thread(
                             "bg_thread",
                             move || {
-                                for _ in 0..10000 {
+                                for _ in 0..2000 {
                                     data.faults.push(Fault::new());
                                 }
                                 println!("Faults Complete");
