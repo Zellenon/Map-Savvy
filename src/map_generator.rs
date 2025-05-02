@@ -21,7 +21,7 @@ const BLUE: [u8; 49] = [
 
 pub type WorldMap = Vec<Vec<usize>>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MapData {
     pub faults: Vec<Fault>,
     pub seed: u32,
@@ -42,7 +42,7 @@ impl Default for MapData {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Copy, Debug)]
 pub struct Fault {
     flag: bool,
     alpha: f64,
