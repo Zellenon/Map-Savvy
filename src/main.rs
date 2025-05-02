@@ -8,17 +8,11 @@ mod map_generator;
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
-        // Hide the OS-specific "chrome" around the window:
-        decorated: true,
-        // To have rounded corners we need transparency:
-        transparent: true,
-        min_window_size: Some(egui::vec2(400.0, 100.0)),
-        initial_window_size: Some(egui::vec2(1500.0, 900.0)),
         ..Default::default()
     };
     eframe::run_native(
         "Custom window frame", // unused title
         options,
-        Box::new(|_cc| Box::new(MyApp::default())),
+        Box::new(|_cc| Ok(Box::new(MyApp::default()))),
     )
 }
