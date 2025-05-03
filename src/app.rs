@@ -1,5 +1,5 @@
 use eframe::egui;
-use egui::{ColorImage, Slider, TextEdit, TextureHandle};
+use egui::{ColorImage, Image, Slider, TextEdit, TextureHandle};
 use poll_promise::Promise;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use std::sync::Arc;
@@ -72,7 +72,7 @@ impl eframe::App for MyApp {
                     match &self.generation_state {
                         AppState::Startup => ui.label("No Image"),
                         AppState::Generating(_) => ui.spinner(),
-                        AppState::ImageGenerated((_, handle)) => ui.image(handle),
+                        AppState::ImageGenerated((_, handle)) => ui.add(Image::new(handle)),
                     };
                 });
             });
@@ -91,10 +91,7 @@ impl MyApp {
 
         self.generation_state =
             AppState::Generating(Promise::spawn_thread("bg_thread", move || {
-                data.faults = (0..(n_faults * 100))
-                    .par_bridge()
-                    .map(|_| Fault::new())
-                    .collect();
+                data.faults = (0..(n_faults * 100)).map(|_| Fault::new()).collect();
                 println!("Faults Complete");
                 let img = map_image(&data).unwrap();
                 (data, img)
