@@ -151,10 +151,10 @@ pub fn map_from_faults(size: &(usize, usize), faults: &[Fault]) -> WorldMap {
 }
 
 pub fn colormap_from_worldmap(map: WorldMap, percent_water: f64) -> WorldMap {
-    let world_min = map
-        .iter()
-        .map(|w| w.iter().cloned().fold(usize::MAX, usize::min))
-        .fold(usize::MAX, usize::min);
+    let world_min: usize = map
+        .par_iter()
+        .map(|w| w.par_iter().cloned().reduce(|| usize::MAX, usize::min))
+        .reduce(|| usize::MAX, usize::min);
 
     let world_heights: WorldMap = map
         .par_iter()
